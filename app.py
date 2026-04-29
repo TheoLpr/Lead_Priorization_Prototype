@@ -171,7 +171,7 @@ if uploaded_file is not None:
     nombre_lignes = st.sidebar.select_slider(
     "Nombre de clients à recontacter",
     options=[i+1 for i in range(100)],
-    value = 25
+    value = 20
     )
 
     # Tri par score et sélection du nombre de lignes
