@@ -1,27 +1,28 @@
-# Priorisation des prospects commerciaux
+# Lead Priorization Prototype
 
 ## Présentation du projet
 
-Ce projet a été réalisé à partir d'un exercice technique pour lequel un jeu de données de prospects m'a été fourni avec une consigne volontairement ouverte : **analyser les données et proposer une utilisation pertinente d'un point de vue métier**.
+Ce projet explore l'utilisation de données prospects pour répondre à une problématique concrète de performance commerciale : **comment identifier les prospects à contacter en priorité ?**
 
-J'ai choisi de développer un outil de **scoring et de priorisation commerciale** permettant de répondre à une problématique simple :
+À partir de données décrivant le profil, le projet et le niveau de maturité des prospects, j'ai développé une méthode de **scoring permettant de les classer selon leur potentiel commercial**.
 
-> Parmi l'ensemble des prospects disponibles, lesquels devraient être contactés en priorité par les équipes commerciales ?
+L'objectif est de transformer les données disponibles en un outil d'aide à la décision capable de fournir aux équipes commerciales une réponse directement exploitable : **sur quels prospects concentrer leurs efforts en priorité ?**
 
-L'objectif n'est donc pas uniquement d'analyser les performances passées, mais de transformer les données disponibles en un **outil directement exploitable pour la prise de décision commerciale**.
+Le projet associe ainsi trois dimensions :
 
----
+- l'analyse exploratoire des données afin d'identifier les variables pertinentes ;
+- la construction d'un scoring métier explicable ;
+- le développement d'une application Streamlit permettant d'utiliser le classement et d'en mesurer la performance historique.
 
 ## Problématique métier
 
-Une équipe commerciale dispose d'un temps limité et ne peut pas nécessairement traiter l'ensemble des prospects avec le même niveau de priorité.
+Lorsqu'un volume important de prospects doit être traité, leur accorder à tous le même niveau de priorité n'est pas nécessairement la stratégie la plus efficace.
 
-L'objectif du projet est de construire un système permettant de :
+L'enjeu consiste à exploiter les informations disponibles en amont de la prise de contact afin de **hiérarchiser le portefeuille de prospects et orienter l'effort commercial vers les profils présentant le meilleur potentiel**.
 
-- classer les prospects selon leur potentiel commercial ;
-- identifier rapidement les prospects à contacter en priorité ;
-- concentrer l'effort commercial sur les profils les plus prometteurs ;
-- mesurer a posteriori si cette priorisation permet effectivement de concentrer davantage de signatures.
+Le scoring développé dans ce projet répond à cet objectif en attribuant à chaque prospect un score de priorité, utilisé ensuite pour générer une liste de contacts ordonnée.
+
+La pertinence de cette priorisation est évaluée à partir du passage à l'étape de signature observé historiquement.
 
 ---
 
