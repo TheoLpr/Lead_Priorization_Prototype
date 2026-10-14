@@ -4,7 +4,7 @@ import plotly.express as px
 
 
 # ============================================================
-# CONFIGURATION
+# CONFIGURATION DE LA PAGE
 # ============================================================
 
 st.set_page_config(
@@ -15,70 +15,14 @@ st.set_page_config(
 
 
 # ============================================================
-# IDENTITÉ VISUELLE
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-    }
-
-    .hero {
-        padding: 2.2rem 2.4rem;
-        border-radius: 20px;
-        background: linear-gradient(
-            135deg,
-            #111827 0%,
-            #1f2937 100%
-        );
-        color: white;
-        margin-bottom: 2rem;
-    }
-
-    .hero h1 {
-        font-size: 2.4rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .hero p {
-        font-size: 1.05rem;
-        color: #d1d5db;
-        max-width: 850px;
-        margin-bottom: 0;
-    }
-
-    .info-box {
-        padding: 1.3rem 1.5rem;
-        border-radius: 14px;
-        background-color: #f8fafc;
-        border: 1px solid #e5e7eb;
-        margin-top: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .small-text {
-        font-size: 0.9rem;
-        color: #6b7280;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# ============================================================
-# PRÉTRAITEMENT
+# PRÉTRAITEMENT DES DONNÉES
 # ============================================================
 
 def upload_et_pretraitement_donnes(data):
 
     data = data.copy()
 
+    # Nettoyage des balises web
     colonnes_texte = [
         "NatureProjet",
         "TypeProjet",
@@ -93,8 +37,7 @@ def upload_et_pretraitement_donnes(data):
             .str.replace("&nbsp;", " ", regex=False)
         )
 
-    # Un prospect sans information de transmission
-    # est considéré comme non transmis.
+    # Une valeur vide est considérée comme non transmise
     data.loc[:, "estTransmiAuCommercial"] = (
         data.loc[:, "estTransmiAuCommercial"]
         .fillna(0)
@@ -104,24 +47,26 @@ def upload_et_pretraitement_donnes(data):
 
 
 # ============================================================
-# SCORING
+# CALCUL DU SCORE
 # ============================================================
 
 def calcul_score_contact(row):
 
     """
-    Calcule un score de priorité commercial compris entre 0 et 1.
+    Calcule un score de priorité pour un prospect.
 
-    Le score repose sur quatre dimensions :
+    Le score repose sur quatre dimensions métier :
 
-    - besoin de financement : 20 %
-    - nature du projet : 15 %
-    - maturité du projet : 35 %
-    - qualité du lead : 30 %
+    - Besoin de financement : 20 %
+    - Nature du projet : 15 %
+    - Maturité du projet : 35 %
+    - Type de lead : 30 %
 
     La variable PassageEtapeSignature_4 n'est jamais utilisée
-    dans le calcul du score. Elle sert uniquement à évaluer
-    a posteriori la qualité de la priorisation.
+    dans le calcul du score.
+
+    Elle sert uniquement à évaluer a posteriori la qualité
+    de la priorisation.
     """
 
     # --------------------------------------------------------
@@ -257,281 +202,277 @@ def calcul_score_contact(row):
 
 
 # ============================================================
-# HERO
+# CHARGEMENT DES DONNÉES
 # ============================================================
 
-st.markdown(
+try:
+
+    df = pd.read_excel("Prospects.xlsx")
+
+except FileNotFoundError:
+
+    st.error(
+        "Le fichier Prospects.xlsx est introuvable. "
+        "Vérifiez qu'il est bien présent dans le dépôt GitHub."
+    )
+
+    st.stop()
+
+
+# Prétraitement
+df = upload_et_pretraitement_donnes(df)
+
+
+# Calcul du score
+df.loc[:, "score"] = [
+    calcul_score_contact(row)
+    for _, row in df.iterrows()
+]
+
+
+# Score présenté sur 100 dans l'interface
+df.loc[:, "score_priorite"] = (
+    df["score"] * 100
+).round(1)
+
+
+# ============================================================
+# EN-TÊTE
+# ============================================================
+
+st.title("🎯 Lead Prioritization")
+
+st.caption(
+    "Scoring et priorisation des prospects à potentiel commercial"
+)
+
+st.write(
     """
-    <div class="hero">
+    Ce prototype a été développé à partir d'un exercice technique
+    avec un objectif volontairement ouvert : **exploiter un dataset
+    de prospects afin d'en tirer une solution business pertinente.**
 
-        <h1>🎯 Lead Prioritization</h1>
-
-        <p>
-        Un outil d'aide à la décision conçu pour aider les équipes
-        commerciales à identifier les prospects à contacter en priorité
-        grâce à un scoring métier explicable.
-        </p>
-
-    </div>
-    """,
-    unsafe_allow_html=True
+    L'approche retenue consiste à construire un système de scoring
+    permettant d'aider les équipes commerciales à identifier
+    **les prospects à contacter en priorité**.
+    """
 )
 
 
 # ============================================================
-# PRÉSENTATION DU PROJET
+# PROBLÉMATIQUE
 # ============================================================
 
-st.markdown("### Le problème")
+st.divider()
+
+st.subheader("Le problème")
 
 st.write(
     """
     Les équipes commerciales disposent d'un volume important de prospects,
     mais tous ne présentent pas le même potentiel de conversion.
 
-    L'objectif de ce projet est donc simple :
-    **identifier les prospects à traiter en priorité afin de concentrer
-    l'effort commercial sur les leads présentant le meilleur potentiel.**
+    L'objectif est donc de **concentrer l'effort commercial sur les leads
+    présentant le meilleur potentiel**, plutôt que de traiter l'ensemble
+    des prospects de manière indifférenciée.
     """
 )
 
-st.markdown(
+
+st.info(
     """
-    <div class="info-box">
+    🎯 **Métrique cible : PassageEtapeSignature_4**
 
-    <b>🎯 Métrique cible : PassageEtapeSignature_4</b><br><br>
+    Cette variable indique si le prospect a atteint l'étape 4
+    du tunnel commercial : **la signature**.
 
-    Cette variable indique si le prospect a atteint l'étape 4 du tunnel
-    commercial : <b>la signature</b>.
+    Elle n'intervient jamais dans le calcul du score.
 
-    <br><br>
-
-    Elle n'intervient pas dans le calcul du score.
-    Elle est utilisée uniquement après le scoring afin d'évaluer
-    sa capacité à identifier les prospects ayant historiquement converti.
-
-    </div>
-    """,
-    unsafe_allow_html=True
+    Elle est utilisée uniquement après le scoring afin de mesurer
+    si les prospects considérés comme prioritaires ont effectivement
+    davantage converti historiquement.
+    """
 )
 
 
 # ============================================================
-# CHARGEMENT DES DONNÉES
+# USAGE MÉTIER
 # ============================================================
 
-st.markdown("### Données")
+st.subheader("Du prototype à l'usage métier")
 
-col_demo, col_upload = st.columns(2)
+st.write(
+    """
+    Cette démonstration utilise directement le dataset historique
+    ayant servi au développement du prototype.
 
-with col_demo:
-
-    st.markdown("#### Dataset de démonstration")
-
-    st.caption(
-        "Utilisez directement le dataset ayant servi "
-        "à construire ce projet."
-    )
-
-    charger_demo = st.button(
-        "🚀 Charger les données de démonstration",
-        use_container_width=True,
-        type="primary"
-    )
-
-
-with col_upload:
-
-    st.markdown("#### Votre propre fichier")
-
-    st.caption(
-        "Vous pouvez également tester l'outil "
-        "avec un fichier Excel compatible."
-    )
-
-    uploaded_file = st.file_uploader(
-        "Importer un fichier Excel",
-        type=["xlsx"],
-        label_visibility="collapsed"
-    )
+    Dans un environnement opérationnel, l'outil pourrait être connecté
+    au **CRM ou à la base de prospects de l'entreprise** afin de recalculer
+    régulièrement le scoring et de fournir aux commerciaux une liste
+    actualisée des prospects à contacter en priorité.
+    """
+)
 
 
 # ============================================================
-# MÉMORISATION DU CHOIX
+# CALCUL DES INDICATEURS GLOBAUX
 # ============================================================
 
-if charger_demo:
+nb_prospects = len(df)
 
-    st.session_state["utiliser_demo"] = True
+nb_signatures = int(
+    df["PassageEtapeSignature_4"].sum()
+)
+
+taux_signature_global = (
+    df["PassageEtapeSignature_4"].mean()
+)
 
 
-if uploaded_file is not None:
+# Prospects transmis au commercial
+df_transmis = df[
+    df["estTransmiAuCommercial"] == 1
+].copy()
 
-    st.session_state["utiliser_demo"] = False
+
+nb_transmis = len(df_transmis)
+
+
+taux_signature_transmis = (
+    df_transmis["PassageEtapeSignature_4"].mean()
+)
 
 
 # ============================================================
-# LECTURE DES DONNÉES
+# VUE D'ENSEMBLE
 # ============================================================
 
-df = None
+st.divider()
 
-if uploaded_file is not None:
+st.subheader("Vue d'ensemble")
 
-    df = pd.read_excel(uploaded_file)
+col1, col2, col3, col4 = st.columns(4)
 
 
-elif st.session_state.get("utiliser_demo", False):
+col1.metric(
+    "Prospects",
+    f"{nb_prospects:,}".replace(",", " ")
+)
 
-    try:
 
-        df = pd.read_excel("Prospects.xlsx")
+col2.metric(
+    "Transmis au commercial",
+    f"{nb_transmis:,}".replace(",", " ")
+)
 
-    except FileNotFoundError:
 
-        st.error(
-            "Le fichier Prospects.xlsx doit être placé "
-            "dans le même dossier que l'application."
+col3.metric(
+    "Signatures",
+    f"{nb_signatures:,}".replace(",", " ")
+)
+
+
+col4.metric(
+    "Taux de signature",
+    f"{taux_signature_transmis:.1%}"
+)
+
+
+st.caption(
+    """
+    Le taux de signature de référence est calculé sur les prospects
+    ayant effectivement été transmis aux équipes commerciales.
+    """
+)
+
+
+# ============================================================
+# PRIORISATION COMMERCIALE
+# ============================================================
+
+st.divider()
+
+st.subheader("Priorisation commerciale")
+
+st.write(
+    """
+    Sélectionnez la population à analyser et le nombre de prospects
+    que l'équipe commerciale est en capacité de traiter.
+
+    Les prospects sont automatiquement classés du score
+    de priorité le plus élevé au plus faible.
+    """
+)
+
+
+# ============================================================
+# FILTRES
+# ============================================================
+
+col_filtre, col_nombre = st.columns([1, 2])
+
+
+with col_filtre:
+
+    filtre_transmis = st.selectbox(
+        "Population",
+        options=[
+            "Transmis",
+            "Non Transmis",
+            "Tous"
+        ],
+        help=(
+            "Les prospects transmis permettent d'évaluer "
+            "historiquement le scoring. Les non transmis "
+            "correspondent à son usage opérationnel."
         )
+    )
+
+
+filtre_corres = {
+    "Transmis": 1,
+    "Non Transmis": 0
+}
+
+
+df_filtered = df.copy()
+
+
+if filtre_transmis != "Tous":
+
+    df_filtered = df_filtered[
+        df_filtered["estTransmiAuCommercial"]
+        == filtre_corres[filtre_transmis]
+    ].copy()
 
 
 # ============================================================
-# APPLICATION
+# TRI DES PROSPECTS
 # ============================================================
 
-if df is not None:
-
-    df = upload_et_pretraitement_donnes(df)
-
-    # Calcul du score
-    df.loc[:, "score"] = [
-        calcul_score_contact(row)
-        for _, row in df.iterrows()
-    ]
-
-    # Score plus lisible pour l'utilisateur
-    df.loc[:, "score_priorite"] = (
-        df["score"] * 100
-    ).round(1)
-
-
-    # ========================================================
-    # INDICATEURS DATASET
-    # ========================================================
-
-    nb_prospects = len(df)
-
-    nb_signatures = int(
-        df["PassageEtapeSignature_4"].sum()
-    )
-
-    taux_signature_total = (
-        df["PassageEtapeSignature_4"].mean()
-    )
-
-    df_transmis = df[
-        df["estTransmiAuCommercial"] == 1
-    ]
-
-    taux_signature_transmis = (
-        df_transmis["PassageEtapeSignature_4"].mean()
-    )
-
-
-    st.divider()
-
-    st.markdown("### Vue d'ensemble")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric(
-        "Prospects",
-        f"{nb_prospects:,}".replace(",", " ")
-    )
-
-    col2.metric(
-        "Signatures",
-        f"{nb_signatures:,}".replace(",", " ")
-    )
-
-    col3.metric(
-        "Conversion globale",
-        f"{taux_signature_total:.1%}"
-    )
-
-    col4.metric(
-        "Conversion après transmission",
-        f"{taux_signature_transmis:.1%}"
-    )
-
-
-    st.caption(
-        "La conversion après transmission constitue la baseline "
-        "de référence pour évaluer la performance du scoring."
-    )
-
-
-    # ========================================================
-    # PARAMÉTRAGE
-    # ========================================================
-
-    st.divider()
-
-    st.markdown("### Priorisation commerciale")
-
-    st.write(
-        """
-        Sélectionnez la population à analyser puis le nombre de prospects
-        que l'équipe commerciale est en capacité de traiter.
-        """
-    )
-
-
-    col_filtre, col_nombre = st.columns([1, 2])
-
-
-    with col_filtre:
-
-        filtre_transmis = st.selectbox(
-            "Population",
-            options=[
-                "Transmis",
-                "Non Transmis",
-                "Tous"
-            ]
-        )
-
-
-    filtre_corres = {
-        "Transmis": 1,
-        "Non Transmis": 0
-    }
-
-
-    df_filtered = df.copy()
-
-
-    if filtre_transmis != "Tous":
-
-        df_filtered = df_filtered[
-            df_filtered["estTransmiAuCommercial"]
-            == filtre_corres[filtre_transmis]
-        ]
-
-
-    # Tri avant sélection du Top N
-    df_filtered = df_filtered.sort_values(
+df_filtered = (
+    df_filtered
+    .sort_values(
         by=[
             "score",
             "besoinDeFinancement"
         ],
         ascending=False
-    ).reset_index(drop=True)
+    )
+    .reset_index(drop=True)
+)
 
 
-    with col_nombre:
+# ============================================================
+# SLIDER TOP N
+# ============================================================
 
-        max_leads = len(df_filtered)
+max_leads = len(df_filtered)
+
+
+with col_nombre:
+
+    if max_leads >= 10:
 
         nombre_lignes = st.slider(
             "Nombre de prospects à prioriser",
@@ -541,309 +482,449 @@ if df is not None:
             step=10
         )
 
-
-    # ========================================================
-    # TOP N
-    # ========================================================
-
-    df_selection = (
-        df_filtered
-        .head(nombre_lignes)
-        .copy()
-    )
-
-
-    # ========================================================
-    # KPI DYNAMIQUES
-    # ========================================================
-
-    st.markdown("#### Performance de la sélection")
-
-
-    if filtre_transmis == "Transmis":
-
-        taux_selection = (
-            df_selection[
-                "PassageEtapeSignature_4"
-            ].mean()
-        )
-
-        gain_ciblage = (
-            taux_selection
-            / taux_signature_transmis
-            if taux_signature_transmis > 0
-            else 0
-        )
-
-
-        col1, col2, col3 = st.columns(3)
-
-
-        col1.metric(
-            "Taux de signature de référence",
-            f"{taux_signature_transmis:.1%}"
-        )
-
-
-        col2.metric(
-            f"Taux de signature — Top {nombre_lignes}",
-            f"{taux_selection:.1%}",
-            delta=(
-                f"{(taux_selection - taux_signature_transmis):+.1%}"
-            )
-        )
-
-
-        col3.metric(
-            "Gain de ciblage",
-            f"× {gain_ciblage:.2f}"
-        )
-
-
-        st.caption(
-            f"Historiquement, {taux_selection:.1%} des "
-            f"{nombre_lignes} prospects les mieux classés ont atteint "
-            "l'étape de signature."
-        )
-
-
-    elif filtre_transmis == "Non Transmis":
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "Prospects disponibles",
-            len(df_filtered)
-        )
-
-        col2.metric(
-            "Prospects à contacter",
-            len(df_selection)
-        )
-
-        col3.metric(
-            "Score moyen du Top",
-            f"{df_selection['score_priorite'].mean():.1f} / 100"
-        )
-
-
-        st.info(
-            "💡 Ces prospects n'ont pas encore été transmis au commercial. "
-            "Leur taux de signature historique ne peut donc pas être utilisé "
-            "pour évaluer leur performance. Le scoring sert ici à déterminer "
-            "les prospects à contacter en priorité."
-        )
-
-
     else:
 
-        taux_selection = (
-            df_selection[
+        nombre_lignes = max_leads
+
+        st.write(
+            f"{max_leads} prospects disponibles"
+        )
+
+
+# ============================================================
+# SÉLECTION TOP N
+# ============================================================
+
+df_selection = (
+    df_filtered
+    .head(nombre_lignes)
+    .copy()
+)
+
+
+# ============================================================
+# PERFORMANCE DE LA SÉLECTION
+# ============================================================
+
+st.markdown("### Performance de la sélection")
+
+
+# ------------------------------------------------------------
+# CAS 1 : PROSPECTS TRANSMIS
+# ------------------------------------------------------------
+
+if filtre_transmis == "Transmis":
+
+    taux_selection = (
+        df_selection[
+            "PassageEtapeSignature_4"
+        ].mean()
+    )
+
+
+    gain_ciblage = (
+        taux_selection / taux_signature_transmis
+        if taux_signature_transmis > 0
+        else 0
+    )
+
+
+    difference = (
+        taux_selection
+        - taux_signature_transmis
+    )
+
+
+    col1, col2, col3 = st.columns(3)
+
+
+    col1.metric(
+        "Taux de signature de référence",
+        f"{taux_signature_transmis:.1%}"
+    )
+
+
+    col2.metric(
+        f"Taux de signature — Top {nombre_lignes}",
+        f"{taux_selection:.1%}",
+        delta=f"{difference:+.1%}"
+    )
+
+
+    col3.metric(
+        "Gain de ciblage",
+        f"× {gain_ciblage:.2f}"
+    )
+
+
+    st.success(
+        f"""
+        Parmi les **{nombre_lignes} prospects les mieux classés**,
+        **{taux_selection:.1%} ont historiquement atteint la signature**,
+        contre **{taux_signature_transmis:.1%}** pour l'ensemble
+        des prospects transmis.
+        """
+    )
+
+
+# ------------------------------------------------------------
+# CAS 2 : PROSPECTS NON TRANSMIS
+# ------------------------------------------------------------
+
+elif filtre_transmis == "Non Transmis":
+
+    score_moyen = (
+        df_selection["score_priorite"].mean()
+    )
+
+
+    col1, col2, col3 = st.columns(3)
+
+
+    col1.metric(
+        "Prospects disponibles",
+        f"{len(df_filtered):,}".replace(",", " ")
+    )
+
+
+    col2.metric(
+        "Prospects à contacter",
+        len(df_selection)
+    )
+
+
+    col3.metric(
+        "Score moyen de la sélection",
+        f"{score_moyen:.1f} / 100"
+    )
+
+
+    st.info(
+        """
+        💡 Ces prospects n'ont pas encore été transmis au commercial.
+
+        Leur taux de signature ne peut donc pas encore être utilisé
+        pour mesurer leur performance.
+
+        Le scoring joue ici son rôle opérationnel :
+        **identifier les prospects à contacter en priorité.**
+        """
+    )
+
+
+# ------------------------------------------------------------
+# CAS 3 : TOUS LES PROSPECTS
+# ------------------------------------------------------------
+
+else:
+
+    taux_selection = (
+        df_selection[
+            "PassageEtapeSignature_4"
+        ].mean()
+    )
+
+
+    score_moyen = (
+        df_selection[
+            "score_priorite"
+        ].mean()
+    )
+
+
+    col1, col2, col3 = st.columns(3)
+
+
+    col1.metric(
+        "Conversion globale",
+        f"{taux_signature_global:.1%}"
+    )
+
+
+    col2.metric(
+        f"Taux de signature — Top {nombre_lignes}",
+        f"{taux_selection:.1%}"
+    )
+
+
+    col3.metric(
+        "Score moyen de la sélection",
+        f"{score_moyen:.1f} / 100"
+    )
+
+
+# ============================================================
+# PERFORMANCE DU SCORING
+# ============================================================
+
+if filtre_transmis == "Transmis":
+
+    st.divider()
+
+    st.subheader("Performance du scoring")
+
+    st.write(
+        """
+        Le graphique ci-dessous montre comment évolue le taux
+        de signature lorsque l'on augmente progressivement
+        le nombre de prospects sélectionnés.
+
+        Plus la courbe se situe au-dessus de la baseline,
+        plus le scoring concentre efficacement les signatures
+        dans les premières positions du classement.
+        """
+    )
+
+
+    performances = []
+
+
+    for n in range(
+        10,
+        len(df_filtered) + 1,
+        10
+    ):
+
+        top_n = df_filtered.head(n)
+
+
+        taux = (
+            top_n[
                 "PassageEtapeSignature_4"
             ].mean()
         )
 
-        col1, col2, col3 = st.columns(3)
 
-        col1.metric(
-            "Conversion globale",
-            f"{taux_signature_total:.1%}"
-        )
-
-        col2.metric(
-            f"Top {nombre_lignes}",
-            f"{taux_selection:.1%}"
-        )
-
-        col3.metric(
-            "Score moyen",
-            f"{df_selection['score_priorite'].mean():.1f} / 100"
+        performances.append(
+            {
+                "Nombre de prospects": n,
+                "Taux de signature": taux
+            }
         )
 
 
-    # ========================================================
-    # COURBE DE PERFORMANCE
-    # ========================================================
+    # Ajout du dernier point si nécessaire
+    if len(df_filtered) % 10 != 0:
 
-    if filtre_transmis == "Transmis":
-
-        st.divider()
-
-        st.markdown("### Performance du scoring")
-
-        st.write(
-            """
-            Cette courbe mesure le taux de signature historique lorsque
-            l'on augmente progressivement le nombre de prospects sélectionnés.
-            """
+        performances.append(
+            {
+                "Nombre de prospects": len(df_filtered),
+                "Taux de signature": (
+                    df_filtered[
+                        "PassageEtapeSignature_4"
+                    ].mean()
+                )
+            }
         )
 
 
-        performances = []
-
-        pas = 10
-
-        for n in range(
-            pas,
-            len(df_filtered) + 1,
-            pas
-        ):
-
-            top_n = df_filtered.head(n)
-
-            taux = (
-                top_n[
-                    "PassageEtapeSignature_4"
-                ].mean()
-            )
-
-            performances.append(
-                {
-                    "Nombre de prospects": n,
-                    "Taux de signature": taux
-                }
-            )
-
-
-        df_performance = pd.DataFrame(
-            performances
-        )
-
-
-        fig = px.line(
-            df_performance,
-            x="Nombre de prospects",
-            y="Taux de signature",
-            title="Taux de signature selon le nombre de prospects priorisés"
-        )
-
-
-        fig.add_hline(
-            y=taux_signature_transmis,
-            line_dash="dash",
-            annotation_text=(
-                f"Baseline : "
-                f"{taux_signature_transmis:.1%}"
-            )
-        )
-
-
-        fig.update_yaxes(
-            tickformat=".0%"
-        )
-
-
-        fig.update_layout(
-            xaxis_title="Nombre de prospects sélectionnés",
-            yaxis_title="Taux de signature",
-            hovermode="x unified"
-        )
-
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-
-
-    # ========================================================
-    # TABLEAU DES PROSPECTS
-    # ========================================================
-
-    st.divider()
-
-    st.markdown(
-        f"### Top {nombre_lignes} prospects prioritaires"
+    df_performance = pd.DataFrame(
+        performances
     )
 
 
-    colonnes_affichage = [
-        "id",
-        "score_priorite",
-        "typeLead",
-        "MaturiteProjet",
-        "LB_Nature",
-        "NatureProjet",
-        "besoinDeFinancement",
-        "Apport",
-        "estTransmiAuCommercial"
-    ]
-
-
-    # En mode validation, on affiche également le résultat réel.
-    if filtre_transmis == "Transmis":
-
-        colonnes_affichage.append(
-            "PassageEtapeSignature_4"
+    fig = px.line(
+        df_performance,
+        x="Nombre de prospects",
+        y="Taux de signature",
+        title=(
+            "Taux de signature selon "
+            "le nombre de prospects priorisés"
         )
+    )
 
 
-    st.dataframe(
-        df_selection[colonnes_affichage],
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "id": "ID",
-            "score_priorite": st.column_config.ProgressColumn(
-                "Score de priorité",
-                help="Score métier utilisé pour prioriser les prospects.",
-                min_value=0,
-                max_value=100,
-                format="%.1f"
+    fig.add_hline(
+        y=taux_signature_transmis,
+        line_dash="dash",
+        annotation_text=(
+            f"Baseline : "
+            f"{taux_signature_transmis:.1%}"
+        )
+    )
+
+
+    fig.update_yaxes(
+        tickformat=".0%"
+    )
+
+
+    fig.update_layout(
+        xaxis_title="Nombre de prospects sélectionnés",
+        yaxis_title="Taux de signature",
+        hovermode="x unified"
+    )
+
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+
+# ============================================================
+# TABLEAU DES PROSPECTS PRIORITAIRES
+# ============================================================
+
+st.divider()
+
+st.subheader(
+    f"Top {nombre_lignes} prospects prioritaires"
+)
+
+
+st.caption(
+    """
+    Le classement ci-dessous constitue la liste de travail
+    proposée aux équipes commerciales.
+    """
+)
+
+
+colonnes_affichage = [
+    "id",
+    "score_priorite",
+    "typeLead",
+    "MaturiteProjet",
+    "LB_Nature",
+    "NatureProjet",
+    "besoinDeFinancement",
+    "Apport",
+    "estTransmiAuCommercial"
+]
+
+
+# Pour les prospects déjà transmis,
+# on peut afficher le résultat historique.
+if filtre_transmis == "Transmis":
+
+    colonnes_affichage.append(
+        "PassageEtapeSignature_4"
+    )
+
+
+st.dataframe(
+    df_selection[colonnes_affichage],
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+
+        "id": "ID",
+
+        "score_priorite": st.column_config.ProgressColumn(
+            "Score de priorité",
+            help=(
+                "Score métier utilisé pour "
+                "prioriser les prospects."
             ),
-            "typeLead": "Type de lead",
-            "MaturiteProjet": "Maturité du projet",
-            "LB_Nature": "Nature du bien",
-            "NatureProjet": "Projet",
-            "besoinDeFinancement": st.column_config.NumberColumn(
+            min_value=0,
+            max_value=100,
+            format="%.1f"
+        ),
+
+        "typeLead": "Type de lead",
+
+        "MaturiteProjet": "Maturité du projet",
+
+        "LB_Nature": "Nature du bien",
+
+        "NatureProjet": "Projet",
+
+        "besoinDeFinancement": (
+            st.column_config.NumberColumn(
                 "Financement",
                 format="%.0f €"
-            ),
-            "Apport": st.column_config.NumberColumn(
+            )
+        ),
+
+        "Apport": (
+            st.column_config.NumberColumn(
                 "Apport",
                 format="%.0f €"
-            ),
-            "estTransmiAuCommercial": "Transmis",
-            "PassageEtapeSignature_4": "Signature"
-        }
+            )
+        ),
+
+        "estTransmiAuCommercial": "Transmis",
+
+        "PassageEtapeSignature_4": "Signature"
+    }
+)
+
+
+# ============================================================
+# MÉTHODOLOGIE
+# ============================================================
+
+st.divider()
+
+
+with st.expander(
+    "🧠 Comprendre la méthodologie de scoring"
+):
+
+    st.markdown(
+        """
+        ### Construction du score
+
+        Le score est un **scoring métier heuristique**.
+
+        Il combine quatre dimensions :
+
+        | Variable | Pondération |
+        |---|---:|
+        | Maturité du projet | 35 % |
+        | Type de lead | 30 % |
+        | Besoin de financement | 20 % |
+        | Nature du bien | 15 % |
+
+        Les pondérations ont été définies à partir de l'analyse
+        exploratoire du dataset et de l'influence supposée des
+        différentes caractéristiques sur la conversion.
+
+        ---
+
+        ### Pourquoi ne pas utiliser directement la signature ?
+
+        La variable `PassageEtapeSignature_4` constitue la
+        **variable cible d'évaluation**.
+
+        Elle n'est jamais utilisée pour calculer le score.
+
+        Une fois les prospects classés, elle permet en revanche
+        de mesurer si les prospects les mieux scorés ont
+        historiquement davantage atteint la signature.
+
+        Cette séparation permet d'éviter d'intégrer directement
+        le résultat commercial dans la règle de priorisation.
+
+        ---
+
+        ### Limites et prochaines étapes
+
+        Ce score est un outil de **ranking et d'aide à la décision**,
+        et non une probabilité individuelle de conversion.
+
+        Avec davantage de données historiques, l'approche pourrait
+        être prolongée par :
+
+        - une validation sur une période indépendante ;
+        - une optimisation statistique des pondérations ;
+        - la comparaison avec un modèle de classification supervisée ;
+        - l'intégration du scoring directement dans un CRM ;
+        - le suivi du taux de conversion réel après déploiement.
+        """
     )
 
 
-    # ========================================================
-    # MÉTHODOLOGIE
-    # ========================================================
+# ============================================================
+# FOOTER
+# ============================================================
 
-    st.divider()
+st.divider()
 
-    with st.expander(
-        "🧠 Comment fonctionne le scoring ?"
-    ):
-
-        st.markdown(
-            """
-            Le score est un **scoring métier heuristique** compris entre
-            0 et 1 puis présenté dans l'interface sur une échelle de 0 à 100.
-
-            Il combine quatre dimensions :
-
-            - **Maturité du projet — 35 %**
-            - **Type de lead — 30 %**
-            - **Besoin de financement — 20 %**
-            - **Nature du bien — 15 %**
-
-            Les pondérations ont été définies à partir de l'analyse
-            exploratoire du dataset et de l'influence supposée de ces
-            caractéristiques sur la conversion.
-
-            **La variable cible `PassageEtapeSignature_4` n'est jamais
-            utilisée pour calculer le score.**
-
-            Elle intervient uniquement après le classement afin de mesurer
-            la capacité du scoring à concentrer les signatures historiques.
-
-            Ce scoring constitue donc une approche de priorisation
-            explicable et non un modèle probabiliste de machine learning.
-            Une validation sur un historique plus important permettrait
-            ensuite de calibrer ou d'entraîner un modèle prédictif.
-            """
-        )
+st.caption(
+    """
+    Projet portfolio — Prototype de scoring et de priorisation commerciale
+    développé à partir d'un exercice technique.
+    """
+)
